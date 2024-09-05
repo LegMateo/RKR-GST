@@ -1,41 +1,28 @@
 #include <iostream>
 #include <vector>
-#include <algorithm>
-
 using namespace std;
 
-class Individual {
-public:
-    string identifier;
-    int years;
-
-    Individual(string identifier, int years) : identifier(identifier), years(years) {}
-
-    void show() const {
-        cout << "Identifier: " << identifier << ", Years: " << years << endl;
+int getMaxValue(const vector<int>& arr) {
+    if (arr.empty()) {
+        throw invalid_argument("Array cannot be empty");
     }
-};
+
+    int highest = arr[0];
+    for (int i = 1; i < arr.size(); ++i) {
+        if (arr[i] > highest) {
+            highest = arr[i];
+        }
+    }
+    return highest;
+}
 
 int main() {
-    vector<Individual> individuals = {
-        Individual("Alice", 30),
-        Individual("Bob", 25),
-        Individual("Charlie", 35)
-    };
-
-    cout << "Unsorted list:" << endl;
-    for (const auto &ind : individuals) {
-        ind.show();
+    vector<int> arr = {3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5};
+    try {
+        int maxValue = getMaxValue(arr);
+        cout << "Max value found: " << maxValue << endl;
+    } catch (const invalid_argument& e) {
+        cout << e.what() << endl;
     }
-
-    sort(individuals.begin(), individuals.end(), [](const Individual &x, const Individual &y) {
-        return x.years < y.years;
-    });
-
-    cout << "\nList sorted by years:" << endl;
-    for (const auto &ind : individuals) {
-        ind.show();
-    }
-
     return 0;
 }

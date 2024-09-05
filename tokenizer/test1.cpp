@@ -1,41 +1,28 @@
 #include <iostream>
 #include <vector>
-#include <algorithm>
-
 using namespace std;
 
-class Person {
-public:
-    string name;
-    int age;
-
-    Person(string name, int age) : name(name), age(age) {}
-
-    void display() const {
-        cout << "Name: " << name << ", Age: " << age << endl;
+int findMax(const vector<int>& numbers) {
+    if (numbers.empty()) {
+        throw invalid_argument("Array is empty");
     }
-};
+
+    int maxVal = numbers[0];
+    for (int i = 1; i < numbers.size(); ++i) {
+        if (numbers[i] > maxVal) {
+            maxVal = numbers[i];
+        }
+    }
+    return maxVal;
+}
 
 int main() {
-    vector<Person> people = {
-        Person("Alice", 30),
-        Person("Bob", 25),
-        Person("Charlie", 35)
-    };
-
-    cout << "Original list:" << endl;
-    for (const auto &person : people) {
-        person.display();
+    vector<int> numbers = {3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5};
+    try {
+        int maxValue = findMax(numbers);
+        cout << "The maximum value is: " << maxValue << endl;
+    } catch (const invalid_argument& e) {
+        cout << e.what() << endl;
     }
-
-    sort(people.begin(), people.end(), [](const Person &a, const Person &b) {
-        return a.age < b.age;
-    });
-
-    cout << "\nSorted list by age:" << endl;
-    for (const auto &person : people) {
-        person.display();
-    }
-
     return 0;
 }

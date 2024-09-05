@@ -1,11 +1,11 @@
 import { DoublyLinkedList } from "./dataStructures.js";
 import { Node } from "./dataStructures.js";
 import { mark_tokens, occluded } from "./RKR.js";
-let length_of_tokens_tiled = 0;
 
 function markarrays(s, doublyLinkedList, pattern_mark, text_mark) {
-  //console.log(doublyLinkedList);
+  let length_of_tokens_tiled = 0;
   let match = null;
+
   while (!doublyLinkedList.isEmpty()) {
     let currentQueue = doublyLinkedList.head;
 
@@ -17,29 +17,26 @@ function markarrays(s, doublyLinkedList, pattern_mark, text_mark) {
 
     if (currentQueue) {
       match = currentQueue.dequeue();
-      //console.log("match " + match.p, match.t, match.s);
     }
 
     let occlusionResult = occluded(match, pattern_mark, text_mark);
     console.log(
-      "Ocluded tokens " + occlusionResult.occludedTokens,
-      "IsOcluded " + occlusionResult.isOccluded
+      `Ocluded tokens: ${occlusionResult.occludedTokens}, IsOcluded: ${occlusionResult.isOccluded}`
     );
 
-    //Check if match is occluded
     if (!occlusionResult.isOccluded) {
       console.log("Marking tokens: " + match.p, match.t, match.s);
       mark_tokens(match, pattern_mark, text_mark);
 
       length_of_tokens_tiled += match.s;
-    } else if (match.s - occlusionResult.occludedTokens >= s) {
+    } else if (match.s - occlusionResult.occludedTokens >= s / 2) {
       let unmarkedPortion = {
         length: match.s - occlusionResult.occludedTokens,
         matches: [
           {
-            p: match.p + occlusionResult.occludedTokens,
-            t: match.t + occlusionResult.occludedTokens,
-            s: match.s - occlusionResult.occludedTokens,
+            p: match.p, // Start from the original start of the match
+            t: match.t, // Start from the original start of the match
+            s: match.s - occlusionResult.occludedTokens, // Reduce the size by the number of occluded tokens
           },
         ],
       };
@@ -48,15 +45,19 @@ function markarrays(s, doublyLinkedList, pattern_mark, text_mark) {
         unmarkedPortion.matches[0]
       );
       console.log(
-        `Unmarked portion: length: ${unmarkedPortion.length}, p: ${unmarkedPortion.matches[0].p}, t: ${unmarkedPortion.matches[0].t}, s: ${unmarkedPortion.matches[0].s}`
+        `Reinserting unmarked portion: length = ${unmarkedPortion.length}, p = ${unmarkedPortion.matches[0].p}, t = ${unmarkedPortion.matches[0].t}, s = ${unmarkedPortion.matches[0].s}`
+      );
+    } else {
+      console.log(
+        `Unmarked portion too small to reinsert: ${
+          match.s - occlusionResult.occludedTokens
+        }`
       );
     }
-
-    // console.log("Size of match s: " + match.s);
-    // console.log("Size of oclusion: " + occlusionResult.occludedTokens);
   }
 
-  console.log(text_mark, pattern_mark);
-  console.log("Length of tokens tiled:", length_of_tokens_tiled);
+  console.log(`Final Text Mark: ${text_mark}`);
+  console.log(`Final Pattern Mark: ${pattern_mark}`);
+  console.log(`Length of tokens tiled: ${length_of_tokens_tiled}`);
 }
 export default markarrays;

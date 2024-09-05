@@ -2,9 +2,6 @@
 #include <iostream>
 #include <string>
 #include <map>
-#include <fstream>
-#include <chrono>
-#include <iomanip>
 #include <sstream>
 
 using namespace std;
@@ -14,11 +11,11 @@ bool isNumericType(const string &str);
 bool isStringType(const string &str);
 
 std::map<std::string, std::string> symbol_table;
-std::ofstream token_file;
+std::map<int, char> token_to_char;
 
-#define YY_DECL extern "C" int yylex()
-void add_class_name(const char* name);
-void add_function_name(const char* name);
+std::ostringstream tokenStream;  // String stream to accumulate tokens and metadata
+int line_num = 1;  // Track line number
+int column_num = 1;  // Track column number
 
 // Define token types
 enum TokenType {
@@ -44,6 +41,8 @@ enum TokenType {
     EQUAL,
     LESS_THAN,
     GREATER_THAN,
+    LEFT_SHIFT,      // Token for <<
+    RIGHT_SHIFT,     // Token for >>
     OPEN_PARENTH,
     CLOSE_PARENTH,
     OPEN_CURLY,
@@ -70,10 +69,11 @@ enum TokenType {
     CASE,
     BREAK,
     CONTINUE,
-    VIRTUAL
+    VIRTUAL,
+    NOT,
+    MODULO,
 };
 
-std::map<int, char> token_to_char;
 void initialize_token_to_char() {
     token_to_char[NAMESPACE] = 'A';
     token_to_char[CLASS] = 'B';
@@ -97,6 +97,8 @@ void initialize_token_to_char() {
     token_to_char[EQUAL] = 'T';
     token_to_char[LESS_THAN] = 'U';
     token_to_char[GREATER_THAN] = 'V';
+    token_to_char[LEFT_SHIFT] = 'X';
+    token_to_char[RIGHT_SHIFT] = 'Y';
     token_to_char[OPEN_PARENTH] = 'W';
     token_to_char[CLOSE_PARENTH] = 'X';
     token_to_char[OPEN_CURLY] = 'Y';
@@ -124,16 +126,17 @@ void initialize_token_to_char() {
     token_to_char[BREAK] = 'u';
     token_to_char[CONTINUE] = 'v';
     token_to_char[VIRTUAL] = 'w';
+    token_to_char[NOT] = 'z';
+    token_to_char[MODULO] = 'x';
+}
+// Function to add a class name to the symbol table
+void add_class_name(const char* name) {
+    symbol_table[name] = "class";
 }
 
-std::string generate_unique_filename(const std::string& base_name) {
-    auto now = std::chrono::system_clock::now();
-    auto in_time_t = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-    ss << base_name << "_tokens_"
-       << std::put_time(std::localtime(&in_time_t), "%Y%m%d%H%M%S")
-       << ".txt";
-    return ss.str();
+// Function to add a function name to the symbol table
+void add_function_name(const char* name) {
+    symbol_table[name] = "function";
 }
 
 %}
@@ -144,151 +147,170 @@ std::string generate_unique_filename(const std::string& base_name) {
 
 %%
 
-[ \t]+                  { /* Ignore whitespace */ }
+[\n]                    { line_num++; column_num = 1; }  // Increment line number on newline
+
+[ \t]+                  { column_num += yyleng; /* Ignore whitespace */ }
 "//".*                  { /* Ignore single-line comments */ }
 \/\*([^*]|\*+[^*/])*\*\/ { /* Ignore multi-line comments */ }
+^#.*  { /* Ignore preprocessor directives */ }
 
-"private"   { /* Ignore 'private' */ }
-"protected" { /* Ignore 'protected' */ }
-"public"    { /* Ignore 'public' */ }
-"internal"  { /* Ignore 'internal' */ }
-"static"    { /* Ignore 'static' */ }
-"final"     { /* Ignore 'final' */ }
-"const"     { /* Ignore 'const' */ }
+"private"   { column_num += yyleng; /* Ignore 'private' */ }
+"protected" { column_num += yyleng; /* Ignore 'protected' */ }
+"public"    { column_num += yyleng; /* Ignore 'public' */ }
+"internal"  { column_num += yyleng; /* Ignore 'internal' */ }
+"static"    { column_num += yyleng; /* Ignore 'static' */ }
+"final"     { column_num += yyleng; /* Ignore 'final' */ }
+"const"     { column_num += yyleng; /* Ignore 'const' */ }
 
-":" { /* Ignore ':' after access specifiers */ }
+":" { column_num += yyleng; /* Ignore ':' after access specifiers */ }
 
-"namespace" { token_file << token_to_char[NAMESPACE] << '\n'; return NAMESPACE; }
-"class"     { BEGIN(CLASS_DECL); token_file << token_to_char[CLASS] << '\n'; return CLASS; }
-"void"      { BEGIN(FUNC_DECL); token_file << token_to_char[VOID] << '\n'; return VOID; }
-"virtual"   { token_file << token_to_char[VIRTUAL] << '\n'; return VIRTUAL; }
-"cout"      { token_file << token_to_char[OUTPUT_STREAM] << '\n'; return OUTPUT_STREAM; }
-"cin"       { token_file << token_to_char[INPUT_STREAM] << '\n'; return INPUT_STREAM; }
-
-"return"    { token_file << token_to_char[RETURN] << '\n'; return RETURN; }
-"vector"    { token_file << token_to_char[VECTOR] << '\n'; return VECTOR; }
-"map"       { token_file << token_to_char[MAP] << '\n'; return MAP; }
-"set"       { token_file << token_to_char[SET] << '\n'; return SET; }
-
-"try"       { token_file << token_to_char[TRY] << '\n'; return TRY; }
-"catch"     { token_file << token_to_char[CATCH] << '\n'; return CATCH; }
-"throw"     { token_file << token_to_char[THROW] << '\n'; return THROW; }
-
-"if"        { token_file << token_to_char[IF] << '\n'; return IF; }
-"else"      { token_file << token_to_char[ELSE] << '\n'; return ELSE; }
-"while"     { token_file << token_to_char[WHILE] << '\n'; return WHILE; }
-"do"        { token_file << token_to_char[DO] << '\n'; return DO; }
-"switch"    { token_file << token_to_char[SWITCH] << '\n'; return SWITCH; }
-"case"      { token_file << token_to_char[CASE] << '\n'; return CASE; }
-"break"     { token_file << token_to_char[BREAK] << '\n'; return BREAK; }
-"continue"  { token_file << token_to_char[CONTINUE] << '\n'; return CONTINUE; }
-
-"&"         { token_file << token_to_char[AND] << '\n'; return AND; }
-"endl"      { /* Ignore 'endl' */ }
-
-"["         { token_file << token_to_char[OPEN_BRACKET] << '\n'; return OPEN_BRACKET; }
-"]"         { token_file << token_to_char[CLOSE_BRACKET] << '\n'; return CLOSE_BRACKET; }
-
-[a-zA-Z_][a-zA-Z0-9_]*\(\) {
-    string id(yytext);
-    id.pop_back(); // remove the '('
-    if (symbol_table.find(id) != symbol_table.end() && symbol_table[id] == "function") {
-        token_file << token_to_char[FUNCTION_CALL] << '\n';
-        return FUNCTION_CALL;
-    } else {
-        token_file << token_to_char[METHOD_CALL] << '\n';
-        return METHOD_CALL;
+"namespace" { tokenStream << token_to_char[NAMESPACE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return NAMESPACE; }
+"class"     { BEGIN(CLASS_DECL); tokenStream << token_to_char[CLASS] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return CLASS; }
+"void" {
+    tokenStream << token_to_char[VOID] << ' ' << line_num << ' ' << column_num << '\n';
+    column_num += yyleng;  // Update column number after "void"
+    
+    // Handling any whitespace or newline immediately after "void"
+    int c;
+    while ((c = yyinput()) != EOF) {
+        if (c == '\n') {
+            line_num++;
+            column_num = 1;  // Reset column number at the start of a new line
+        } else if (isspace(c)) {
+            column_num++;
+        } else {
+            unput(c);  // Put back the non-whitespace character
+            break;
+        }
     }
+
+    BEGIN(FUNC_DECL);  // Switch to function declaration state
+    return VOID;
 }
+"virtual"   { tokenStream << token_to_char[VIRTUAL] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return VIRTUAL; }
+"cout"      { tokenStream << token_to_char[OUTPUT_STREAM] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return OUTPUT_STREAM; }
+"cin"       { tokenStream << token_to_char[INPUT_STREAM] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return INPUT_STREAM; }
+
+"return"    { tokenStream << token_to_char[RETURN] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return RETURN; }
+"vector"    { tokenStream << token_to_char[VECTOR] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return VECTOR; }
+"map"       { tokenStream << token_to_char[MAP] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return MAP; }
+"set"       { tokenStream << token_to_char[SET] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return SET; }
+
+"try"       { tokenStream << token_to_char[TRY] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return TRY; }
+"catch"     { tokenStream << token_to_char[CATCH] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return CATCH; }
+"throw"     { tokenStream << token_to_char[THROW] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return THROW; }
+
+"if"        { tokenStream << token_to_char[IF] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return IF; }
+"else"      { tokenStream << token_to_char[ELSE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return ELSE; }
+"while"     { tokenStream << token_to_char[WHILE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return WHILE; }
+"do"        { tokenStream << token_to_char[DO] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return DO; }
+"switch"    { tokenStream << token_to_char[SWITCH] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return SWITCH; }
+"case"      { tokenStream << token_to_char[CASE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return CASE; }
+"break"     { tokenStream << token_to_char[BREAK] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return BREAK; }
+"continue"  { tokenStream << token_to_char[CONTINUE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return CONTINUE; }
+
+"&"         { tokenStream << token_to_char[AND] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return AND; }
+"endl"      { column_num += yyleng; /* Ignore 'endl' */ }
+
+"!"   { tokenStream << token_to_char[NOT] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return NOT; }
+"%"   { tokenStream << token_to_char[MODULO] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return MODULO; }
+
+"["         { tokenStream << token_to_char[OPEN_BRACKET] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return OPEN_BRACKET; }
+"]"         { tokenStream << token_to_char[CLOSE_BRACKET] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return CLOSE_BRACKET; }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
     string id(yytext);
     if (symbol_table.find(id) != symbol_table.end()) {
         if (symbol_table[id] == "class") {
-            token_file << token_to_char[CLASS_NAME] << '\n';
+            tokenStream << token_to_char[CLASS_NAME] << ' ' << line_num << ' ' << column_num << '\n';
+            column_num += yyleng;
             return CLASS_NAME;
         } else if (symbol_table[id] == "function") {
-            token_file << token_to_char[FUNCTION_NAME] << '\n';
+            tokenStream << token_to_char[FUNCTION_NAME] << ' ' << line_num << ' ' << column_num << '\n';
+            column_num += yyleng;
             return FUNCTION_NAME;
         }
     } else if (isNumericType(id)) {
-        token_file << token_to_char[NUMERIC_TYPE] << '\n';
+        tokenStream << token_to_char[NUMERIC_TYPE] << ' ' << line_num << ' ' << column_num << '\n';
+        column_num += yyleng;
         return NUMERIC_TYPE;
     } else if (isStringType(id)) {
-        token_file << token_to_char[STRING_TYPE] << '\n';
+        tokenStream << token_to_char[STRING_TYPE] << ' ' << line_num << ' ' << column_num << '\n';
+        column_num += yyleng;
         return STRING_TYPE;
     } else {
-        token_file << token_to_char[IDENTIFIER] << '\n';
+        tokenStream << token_to_char[IDENTIFIER] << ' ' << line_num << ' ' << column_num << '\n';
+        column_num += yyleng;
         return IDENTIFIER;
     }
 }
 
 [0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)? {
-    token_file << token_to_char[NUMERIC_VALUE] << '\n';
+    tokenStream << token_to_char[NUMERIC_VALUE] << ' ' << line_num << ' ' << column_num << '\n';
+    column_num += yyleng;
     return NUMERIC_VALUE;
 }
 
-\'([^\'\\]|\\.)*\' { token_file << token_to_char[CHAR_VALUE] << '\n'; return CHAR_VALUE; }
+\'([^\'\\]|\\.)*\' { tokenStream << token_to_char[CHAR_VALUE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return CHAR_VALUE; }
 
-\"([^"\\]|\\.)*\" { token_file << token_to_char[STRING_VALUE] << '\n'; return STRING_VALUE; }
+\"([^"\\]|\\.)*\" { tokenStream << token_to_char[STRING_VALUE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return STRING_VALUE; }
 
-"+"   { token_file << token_to_char[PLUS] << '\n'; return PLUS; }
-"-"   { token_file << token_to_char[MINUS] << '\n'; return MINUS; }
-"*"   { token_file << token_to_char[TIMES] << '\n'; return TIMES; }
-"/"   { token_file << token_to_char[DIVIDE] << '\n'; return DIVIDE; }
-"="   { token_file << token_to_char[EQUAL] << '\n'; return EQUAL; }
-"<"   { token_file << token_to_char[LESS_THAN] << '\n'; return LESS_THAN; }
-">"   { token_file << token_to_char[GREATER_THAN] << '\n'; return GREATER_THAN; }
-"("   { token_file << token_to_char[OPEN_PARENTH] << '\n'; return OPEN_PARENTH; }
-")"   { token_file << token_to_char[CLOSE_PARENTH] << '\n'; return CLOSE_PARENTH; }
-"{"   { token_file << token_to_char[OPEN_CURLY] << '\n'; return OPEN_CURLY; }
-"}"   { token_file << token_to_char[CLOSE_CURLY] << '\n'; return CLOSE_CURLY; }
-","   { token_file << token_to_char[COMMA] << '\n'; return COMMA; }
-"->"  { token_file << token_to_char[PATTERN_ARROW] << '\n'; return PATTERN_ARROW; }
-";"   { /* Ignore */ }
-"."   { token_file << token_to_char[PERIOD] << '\n'; return PERIOD; }
+"<<"  { tokenStream << token_to_char[LEFT_SHIFT] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return LEFT_SHIFT; }
+">>"  { tokenStream << token_to_char[RIGHT_SHIFT] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return RIGHT_SHIFT; }
+"+"   { tokenStream << token_to_char[PLUS] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return PLUS; }
+"-"   { tokenStream << token_to_char[MINUS] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return MINUS; }
+"*"   { tokenStream << token_to_char[TIMES] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return TIMES; }
+"/"   { tokenStream << token_to_char[DIVIDE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return DIVIDE; }
+"="   { tokenStream << token_to_char[EQUAL] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return EQUAL; }
+"<"   { tokenStream << token_to_char[LESS_THAN] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return LESS_THAN; }
+">"   { tokenStream << token_to_char[GREATER_THAN] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return GREATER_THAN; }
+"("   { tokenStream << token_to_char[OPEN_PARENTH] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return OPEN_PARENTH; }
+")"   { tokenStream << token_to_char[CLOSE_PARENTH] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return CLOSE_PARENTH; }
+"{"   { tokenStream << token_to_char[OPEN_CURLY] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return OPEN_CURLY; }
+"}"   { tokenStream << token_to_char[CLOSE_CURLY] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return CLOSE_CURLY; }
+","   { tokenStream << token_to_char[COMMA] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return COMMA; }
+"->"  { tokenStream << token_to_char[PATTERN_ARROW] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return PATTERN_ARROW; }
+";"   { column_num += yyleng; /* Ignore ';' */ }
+"."   { tokenStream << token_to_char[PERIOD] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return PERIOD; }
 
 <CLASS_DECL>[a-zA-Z_][a-zA-Z0-9_]* {
     add_class_name(yytext);
-    token_file << token_to_char[IDENTIFIER] << '\n';
+    tokenStream << token_to_char[IDENTIFIER] << ' ' << line_num << ' ' << column_num << '\n';
+    column_num += yyleng;
     BEGIN(INITIAL);
     return IDENTIFIER;
 }
 
 <CLASS_DECL>":" {
-    token_file << token_to_char[COLON] << '\n';
+    tokenStream << token_to_char[COLON] << ' ' << line_num << ' ' << column_num << '\n';
+    column_num += yyleng;
     BEGIN(INITIAL);
     return COLON;
 }
 
 <CLASS_DECL>"{" {
-    token_file << token_to_char[OPEN_CURLY] << '\n';
+    tokenStream << token_to_char[OPEN_CURLY] << ' ' << line_num << ' ' << column_num << '\n';
+    column_num += yyleng;
     BEGIN(INITIAL);
     return OPEN_CURLY;
 }
 
 <FUNC_DECL>[a-zA-Z_][a-zA-Z0-9_]* {
     add_function_name(yytext);
-    token_file << token_to_char[IDENTIFIER] << '\n';
+    tokenStream << token_to_char[IDENTIFIER] << ' ' << line_num << ' ' << column_num << '\n';
+    column_num += yyleng;  // Move column number forward after processing identifier
     BEGIN(INITIAL);
     return IDENTIFIER;
 }
 
 <FUNC_DECL>"(" {
-    token_file << token_to_char[OPEN_PARENTH] << '\n';
+    tokenStream << token_to_char[OPEN_PARENTH] << ' ' << line_num << ' ' << column_num << '\n';
+    column_num += yyleng;  // Move column number forward after processing "("
     BEGIN(INITIAL);
     return OPEN_PARENTH;
 }
 
 %%
-
-void add_class_name(const char* name) {
-    symbol_table[name] = "class";
-}
-
-void add_function_name(const char* name) {
-    symbol_table[name] = "function";
-}
 
 int main(int argc, char **argv)
 {
@@ -302,19 +324,13 @@ int main(int argc, char **argv)
         yyin = stdin;
     }
 
-    // Generate a unique file name for each run
-    std::string base_name = "tokens";
-    std::string file_name = generate_unique_filename(base_name);
-    token_file.open(file_name);
-    if (!token_file.is_open()) {
-        cerr << "Error: Could not open " << file_name << " for writing" << endl;
-        return 1;
-    }
-
     initialize_token_to_char();
 
     while (yylex()); // Keep calling yylex until it returns 0
-    token_file.close();
+
+    // Output all the tokens and their metadata at once
+    std::cout << tokenStream.str();
+
     return 0;
 }
 

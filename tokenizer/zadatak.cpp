@@ -1,80 +1,112 @@
-// Main header includes
 #include <iostream>
 #include <vector>
-#include <map>
-#include <set>
-#include <string>
 #include <algorithm>
+#include <map>
 
-/* 
-   Block comment:
-   This file contains various elements such as classes, namespaces,
-   complex variable declarations, and multiple comments.
-*/
+class Calculator {
+public:
+    Calculator() {}
 
-namespace alpha {
-    class AlphaClass {
-    public:
-        // Constructor
-        AlphaClass() : x(0), y(0.0) {
-            // Initialize variables
-            x = 5;
-            y = 10.5;
+    int add(int a, int b) {
+        return a + b;
+    }
+
+    int subtract(int a, int b) {
+        return a - b;
+    }
+
+    int multiply(int a, int b) {
+        return a * b;
+    }
+
+    int divide(int a, int b) {
+        if (b == 0) {
+            std::cerr << "Error: Division by zero" << std::endl;
+            return 0;
         }
+        return a / b;
+    }
+};
 
-        void show() const {
-            std::cout << "x: " << x << ", y: " << y << std::endl;
-        }
-
-    private:
-        int x, z; // Multiple int variables
-        double y;
-    };
+void print_vector(const std::vector<int>& vec) {
+    for (int num : vec) {
+        std::cout << num << " ";
+    }
+    std::cout << std::endl;
 }
-
-namespace beta {
-    // BetaClass definition
-    class BetaClass {
-    public:
-        BetaClass(int a, double b) : a(a), b(b) {}
-
-        void display() const {
-            std::cout << "a: " << a << ", b: " << b << std::endl;
-        }
-
-    private:
-        int a;
-        double b;
-        std::vector<int> vec;
-        std::map<std::string, std::string> dict;
-    };
-}
-
-/*
-    Another block comment:
-    The main function demonstrates usage of both classes
-    and various variable declarations.
-*/
 
 int main() {
-    // Using AlphaClass
-    alpha::AlphaClass alphaObj;
-    alphaObj.show();
+    Calculator calc;
 
-    // Using BetaClass
-    beta::BetaClass betaObj(3, 4.5);
-    betaObj.display();
+    int x = 10, y = 20;
+    std::cout << "Addition: " << calc.add(x, y) << std::endl;
+    std::cout << "Subtraction: " << calc.subtract(x, y) << std::endl;
+    std::cout << "Multiplication: " << calc.multiply(x, y) << std::endl;
+    std::cout << "Division: " << calc.divide(x, y) << std::endl;
 
-    // Variable declarations
-    int i = 1, j = 2, k = 3; // Combined int declarations
-    float pi = 3.14f, e = 2.718f;
-    char ch1 = 'x', ch2 = 'y';
-
-    // STL containers
     std::vector<int> numbers = {1, 2, 3, 4, 5};
-    std::map<int, std::string> idMap;
-    std::set<std::string> names = {"Alice", "Bob", "Charlie"};
+    std::cout << "Original vector: ";
+    print_vector(numbers);
 
-    // End of main
+    std::sort(numbers.begin(), numbers.end(), std::greater<int>());
+    std::cout << "Sorted vector (descending): ";
+    print_vector(numbers);
+
     return 0;
+}#include <iostream>
+#include <vector>
+#include <list>
+#include <string>
+#include <map>
+
+class MathOperations {
+public:
+    MathOperations() {}
+
+    double add(double a, double b) {
+        return a + b;
+    }
+
+    double subtract(double a, double b) {
+        return a - b;
+    }
+
+    double multiply(double a, double b) {
+        return a * b;
+    }
+
+    double divide(double a, double b) {
+        if (b == 0) {
+            std::cerr << "Division by zero is not allowed" << std::endl;
+            return 0.0;
+        }
+        return a / b;
+    }
+
+    double square_root(double a) {
+        if (a < 0) {
+            std::cerr << "Square root of negative number is not allowed" << std::endl;
+            return -1.0;
+        }
+        return sqrt(a);
+    }
+};
+
+void print_list(const std::list<std::string>& lst) {
+    for (const auto& item : lst) {
+        std::cout << item << " ";
+    }
+    std::cout << std::endl;
 }
+
+int main() {
+    MathOperations mathOps;
+
+    double a = 25.5, b = 12.3;
+    std::cout << "Addition: " << mathOps.add(a, b) << std::endl;
+    std::cout << "Subtraction: " << mathOps.subtract(a, b) << std::endl;
+    std::cout << "Multiplication: " << mathOps.multiply(a, b) << std::endl;
+    std::cout << "Division: " << mathOps.divide(a, b) << std::endl;
+    std::cout << "Square Root: " << mathOps.square_root(a) << std::endl;
+
+  

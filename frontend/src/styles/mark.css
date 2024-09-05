@@ -1,0 +1,10 @@
+.highlight {
+  background-color: rgba(255, 111, 0, 0.357) !important;
+}
+.code-box .token.operator {
+  background: none !important;
+}
+
+.code-box .token.operator.highlight {
+  background-color: rgba(255, 111, 0, 0.357) !important;
+}

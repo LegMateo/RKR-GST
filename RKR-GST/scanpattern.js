@@ -35,7 +35,6 @@ function scanpattern(T, P, s, text_mark, pattern_mark) {
         hashValue: hashValue,
         startPoint: index,
       };
-      console.log(`After hashing, index is: ${index}`);
       index++;
     }
 
@@ -67,7 +66,6 @@ function scanpattern(T, P, s, text_mark, pattern_mark) {
     console.log(pattern.length);
 
     if (pattern.length == s) {
-      console.log(`Pattern je tu`);
       let patternHash = rabinKarpHash(pattern, s);
 
       for (let key in hashTable) {
