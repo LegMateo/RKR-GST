@@ -25,7 +25,8 @@
               v-html="
                 getFinalHighlightedCode(
                   textProcessedCodes[index],
-                  textFileMetadata[index]
+                  textFileMetadata[index],
+                  result.similarityScore
                 )
               "
             ></pre>
@@ -44,7 +45,8 @@
               v-html="
                 getFinalHighlightedCode(
                   patternProcessedCodes[index],
-                  patternFileMetadata[index]
+                  patternFileMetadata[index],
+                  result.similarityScore
                 )
               "
             ></pre>
@@ -62,7 +64,7 @@
 
 <script>
 import {
-  fetchProcessedCode,
+  fetchProcessedCodes,
   calculateTokens,
   uploadFiles,
 } from "../services/index.js";
@@ -87,9 +89,7 @@ export default {
   computed: {
     // Computed property to filter comparisons by similarity score
     filteredComparisons() {
-      return this.localComparisons.filter(
-        (result) => result.similarityScore >= 0.65
-      );
+      return this.localComparisons.filter((result) => result.similarityScore);
     },
   },
   watch: {
@@ -105,43 +105,47 @@ export default {
     async loadProcessedCodes() {
       this.loading = true; // Start loading
       try {
-        // Clear the arrays only if loading new data
+        // Clear the arrays before loading new data
         this.textProcessedCodes = [];
         this.patternProcessedCodes = [];
         this.textFileMetadata = [];
         this.patternFileMetadata = [];
 
-        for (let i = 0; i < this.localComparisons.length; i++) {
-          const textFileId = this.localComparisons[i].text1ProcessedCodeID;
-          const patternFileId =
-            this.localComparisons[i].pattern1ProcessedCodeId;
+        // Fetch all processed codes in one go
+        const processedCodes = await fetchProcessedCodes(this.userId); // Fetch the processed codes
+        console.log("Processed Codes:", processedCodes); // Log the processed codes
 
-          if (!textFileId || !patternFileId) {
-            continue;
+        // Iterate over the local comparisons and the processedCodes in order
+        processedCodes.forEach((processedCode, index) => {
+          const comparison = this.localComparisons[index]; // Get the corresponding comparison
+
+          if (comparison) {
+            // Use the processed textCode and patternCode
+            const textCode = processedCode.textCode || ""; // Get textCode from the processed codes
+            const patternCode = processedCode.patternCode || ""; // Get patternCode from the processed codes
+
+            // Push the processed text and pattern code into the respective arrays
+            this.textProcessedCodes.push(textCode);
+            this.patternProcessedCodes.push(patternCode);
+
+            // Push metadata from the comparison object
+            this.textFileMetadata.push(comparison.textMetadata || []);
+            this.patternFileMetadata.push(comparison.patternMetadata || []);
+
+            // Logging to ensure correct data is being fetched
+            console.log("TEXT:", textCode);
+            console.log("PATTERN:", patternCode);
+          } else {
+            console.error(`No comparison found for index: ${index}`);
           }
-
-          const textCode = await fetchProcessedCode(this.userId, textFileId);
-          const patternCode = await fetchProcessedCode(
-            this.userId,
-            patternFileId
-          );
-
-          this.textProcessedCodes.push(textCode || "");
-          this.patternProcessedCodes.push(patternCode || "");
-
-          this.textFileMetadata.push(
-            this.localComparisons[i].textMetadata || []
-          );
-          this.patternFileMetadata.push(
-            this.localComparisons[i].patternMetadata || []
-          );
-        }
+        });
       } catch (error) {
-        console.error("Error fetching processed codes:", error);
+        console.error("Error loading processed codes:", error);
       } finally {
         this.loading = false; // Stop loading once data is fetched
       }
     },
+
     async handleNewUpload(files) {
       try {
         this.loading = true;
@@ -274,15 +278,93 @@ export default {
       return tempDiv.innerHTML;
     },
 
-    getFinalHighlightedCode(code, metadata) {
-      // Step 1: Apply Prism highlighting
-      const syntaxHighlightedCode = this.applySyntaxHighlighting(code);
+    getFinalHighlightedCode(code, metadata, similarityScore) {
+      // Step 1: Apply Prism syntax highlighting
+      const highlightedCode = this.applySyntaxHighlighting(code);
 
       // Step 2: Wrap unrecognized tokens
-      const wrappedCode = this.wrapUnrecognizedTokens(syntaxHighlightedCode);
+      const wrappedCode = this.wrapUnrecognizedTokens(highlightedCode);
 
-      // Step 3: Apply metadata-based highlighting
-      return this.highlightCodeWithMetadata(wrappedCode, metadata);
+      // Step 3: Apply metadata-based highlighting and similarity-based highlighting
+      return this.highlightCodeWithMetadataAndScore(
+        wrappedCode,
+        metadata,
+        similarityScore
+      );
+    },
+
+    highlightCodeWithMetadataAndScore(html, metadata, similarityScore) {
+      if (!html || !metadata || !Array.isArray(metadata)) {
+        return html;
+      }
+
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = html;
+
+      let highlightClass = "";
+      if (similarityScore >= 70) {
+        highlightClass = "highlight-high"; // Red for high similarity
+      } else if (similarityScore >= 41 && similarityScore <= 69) {
+        highlightClass = "highlight-moderate"; // Yellow for moderate similarity
+      } else {
+        highlightClass = "highlight-low"; // Green for low similarity
+      }
+
+      metadata.forEach(({ line, column }) => {
+        let found = false;
+        let currentLine = 1;
+        let position = 0;
+
+        const walkNodes = (node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            let text = node.textContent;
+
+            for (let i = 0; i < text.length; i++) {
+              if (currentLine === line && position === column - 1) {
+                let tokenParent = node.parentNode;
+                while (
+                  tokenParent &&
+                  !tokenParent.classList.contains("token")
+                ) {
+                  tokenParent = tokenParent.parentNode;
+                }
+
+                if (
+                  tokenParent &&
+                  !tokenParent.classList.contains("highlight")
+                ) {
+                  console.log(
+                    `Applying ${highlightClass} to: "${tokenParent.textContent.trim()}" at line ${currentLine}, column ${
+                      position + 1
+                    }`
+                  );
+                  tokenParent.classList.add("highlight", highlightClass); // Apply the highlight class
+                  found = true;
+                }
+                return;
+              }
+              position++;
+              if (text[i] === "\n") {
+                currentLine++;
+                position = 0;
+              }
+            }
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            for (
+              let child = node.firstChild;
+              child;
+              child = child.nextSibling
+            ) {
+              walkNodes(child);
+              if (found) break;
+            }
+          }
+        };
+
+        walkNodes(tempDiv);
+      });
+
+      return tempDiv.innerHTML;
     },
   },
   mounted() {

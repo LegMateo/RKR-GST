@@ -8,7 +8,6 @@
 
       <!-- Container for Upload and Calculate buttons -->
       <div class="buttons-container">
-        <!-- Upload Files Button -->
         <button
           @click="uploadFilesToServer"
           :disabled="uploadLoading || calculateLoading"
@@ -16,7 +15,6 @@
           Upload Files
         </button>
 
-        <!-- Calculate Tokens Button -->
         <button
           @click="calculateTokensForUser"
           :disabled="!userId || uploadLoading || calculateLoading"
@@ -24,13 +22,16 @@
           Calculate Tokens
         </button>
 
-        <!-- Spinner for both upload and calculate processes, always positioned next to "Calculate Tokens" button -->
+        <!-- Spinner for upload and calculate processes -->
         <div
           class="loading-spinner"
           :class="{ visible: uploadLoading || calculateLoading }"
         ></div>
       </div>
     </div>
+
+    <!-- Bar chart for similarity results -->
+    <canvas id="similarityChart" width="400" height="200"></canvas>
 
     <!-- Pass the comparison results to the ComparisonView component -->
     <ComparisonView
@@ -51,59 +52,49 @@ export default {
   },
   data() {
     return {
-      selectedFiles: [], // To store the selected files for upload
-      lastUploadedFiles: [], // To track the last uploaded files
-      userId: null, // To store userId after upload
-      comparisonResults: [], // To store comparison results after calculation
-      lastProcessedUserId: null, // To track the last processed userId
-      uploadLoading: false, // Track upload loading state
-      calculateLoading: false, // Track calculation loading state
+      selectedFiles: [],
+      lastUploadedFiles: [],
+      userId: null,
+      comparisonResults: [],
+      lastProcessedUserId: null,
+      uploadLoading: false,
+      calculateLoading: false,
     };
   },
   methods: {
     handleFileUpload(event) {
-      this.selectedFiles = Array.from(event.target.files); // Store the selected files
+      this.selectedFiles = Array.from(event.target.files);
     },
     async uploadFilesToServer() {
-      // Check if at least 2 files are selected
       if (this.selectedFiles.length < 2) {
         alert("Please select at least 2 files.");
-        return; // Exit the function to prevent uploading
+        return;
       }
 
-      // Generate a unique identifier for the current file selection
       const currentFileNames = this.selectedFiles
         .map((file) => file.name)
         .sort()
         .join(",");
-
-      // Generate a unique identifier for the last uploaded files
       const lastFileNames = this.lastUploadedFiles
         .map((file) => file.name)
         .sort()
         .join(",");
 
-      // Check if the current selection matches the last uploaded files
       if (currentFileNames === lastFileNames) {
         alert("These files have already been uploaded.");
-        return; // Exit the function to prevent re-uploading
+        return;
       }
 
       try {
-        this.uploadLoading = true; // Start showing the loading spinner for upload
-
-        // Upload files and get the userId
+        this.uploadLoading = true;
         const uploadData = await uploadFiles(this.selectedFiles);
-        this.userId = uploadData.userId; // Store the userId for later use
-
-        // Update the last uploaded files to the current files
+        this.userId = uploadData.userId;
         this.lastUploadedFiles = [...this.selectedFiles];
-
         console.log("Files uploaded successfully. User ID:", this.userId);
       } catch (error) {
         console.error("Error uploading files:", error);
       } finally {
-        this.uploadLoading = false; // Stop showing the loading spinner for upload
+        this.uploadLoading = false;
       }
     },
     async calculateTokensForUser() {
@@ -112,27 +103,86 @@ export default {
           throw new Error("User ID is not available. Upload files first.");
         }
 
-        // Check if the current userId matches the last processed one
         if (this.userId === this.lastProcessedUserId) {
           alert("Calculation already completed for current data.");
-          return; // Exit the function to prevent re-calculation
+          return;
         }
 
-        this.calculateLoading = true; // Start showing the loading spinner for calculation
-
-        // Calculate tokens and get the comparison results
+        this.calculateLoading = true;
         const comparisonResults = await calculateTokens(this.userId);
-        this.comparisonResults = comparisonResults; // Directly assign the comparisons array
+        this.comparisonResults = comparisonResults;
 
-        // Update the last processed userId
         this.lastProcessedUserId = this.userId;
-
+        this.createBarChart(); // Call to create the bar chart
         console.log("Token calculation completed.");
       } catch (error) {
         console.error("Error calculating tokens:", error);
       } finally {
-        this.calculateLoading = false; // Stop showing the loading spinner for calculation
+        this.calculateLoading = false;
       }
+    },
+    createBarChart() {
+      const ctx = document.getElementById("similarityChart").getContext("2d");
+
+      const labels = this.comparisonResults.map((result, index) => {
+        const textFilename =
+          result[`text${index + 1}Filename`] || "Unknown File";
+        const patternFilename =
+          result[`pattern${index + 1}Filename`] || "Unknown File";
+        return `${textFilename} vs ${patternFilename}`;
+      });
+
+      const similarityData = this.comparisonResults.map((result) =>
+        parseFloat(result.similarityScore)
+      );
+
+      const backgroundColors = this.generateBarColors(similarityData);
+
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Similarity Percentage",
+              data: similarityData,
+              backgroundColor: backgroundColors,
+              borderColor: backgroundColors.map((color) =>
+                color.replace("0.2", "1")
+              ),
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: "Similarity Percentage",
+              },
+            },
+            x: {
+              title: {
+                display: true,
+                text: "Comparisons (File vs File)",
+              },
+            },
+          },
+        },
+      });
+    },
+    generateBarColors(data) {
+      return data.map((value) => {
+        if (value >= 70) {
+          return "rgba(255, 99, 132, 0.2)"; // Red for high similarity
+        } else if (value >= 41 && value <= 69) {
+          return "rgba(255, 205, 86, 0.2)"; // Yellow for moderate similarity
+        } else {
+          return "rgba(75, 192, 192, 0.2)"; // Green for low similarity
+        }
+      });
     },
   },
 };
@@ -181,20 +231,6 @@ export default {
   gap: 15px;
   width: 100%;
   margin-top: 10px;
-}
-
-/* Ensure the buttons take consistent width */
-button {
-  padding: 10px 20px;
-  font-size: 14px;
-  cursor: pointer;
-  text-align: center;
-}
-
-input[type="file"] {
-  font-size: 14px;
-  cursor: pointer;
-  text-align: left;
 }
 
 @keyframes spin {

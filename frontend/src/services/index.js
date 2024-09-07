@@ -46,12 +46,11 @@ export async function calculateTokens(userId) {
   }
 }
 
-// Function to fetch processed code by fileId
-// Function to fetch processed code by fileId
-export async function fetchProcessedCode(userId, fileId) {
+// Function to fetch all processed comparison data for a user
+export async function fetchProcessedCodes(userId) {
   try {
     const response = await fetch(
-      `http://localhost:3000/processedCode/${userId}/${fileId}`,
+      `http://localhost:3000/processedCode/${userId}`,
       {
         method: "GET",
       }
@@ -62,9 +61,13 @@ export async function fetchProcessedCode(userId, fileId) {
     }
 
     const data = await response.json();
-    return data.processedCode;
+    if (!data.processedCodes) {
+      throw new Error("Processed codes data is missing");
+    }
+    console.log(data.processedCodes);
+    return data.processedCodes; // Return processed comparison data
   } catch (error) {
-    console.error("Error fetching processed code:", error);
-    throw new Error(`Error fetching processed code: ${error.message}`); // Re-throw the error or handle it as needed
+    console.error("Error fetching comparison results:", error);
+    throw new Error(`Error fetching comparison results: ${error.message}`); // Re-throw the error or handle it as needed
   }
 }

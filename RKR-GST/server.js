@@ -270,44 +270,91 @@ app.get("/calculate/:userId", async (req, res) => {
 });
 
 // Retrieve Processed Code Endpoint
-app.get("/processedCode/:userId/:fileId", async (req, res) => {
-  const { userId, fileId } = req.params;
-  console.log(
-    `Retrieving processed code for file ID ${fileId} in user DB ${userId}`
-  );
+// Retrieve all Processed Codes for a User
+// Retrieve all Processed Codes for a User from IDs stored in the "tokens" collection
+app.get("/processedCode/:userId", async (req, res) => {
+  const { userId } = req.params;
+  console.log(`Retrieving all processed code for user ID ${userId}`);
 
   try {
-    if (!ObjectId.isValid(fileId)) {
-      return res.status(400).json({ error: "Invalid fileId format" });
-    }
-
     const db = await connectToUserDB(userId);
-    const objectId = new ObjectId(fileId);
-
     const filesCollection = db.collection("uploads.files");
-    const fileDoc = await filesCollection.findOne({
-      _id: objectId,
-      filename: /^p_/,
-    });
+    const chunksCollection = db.collection("uploads.chunks");
+    const tokensCollection = db.collection("tokens");
 
-    if (!fileDoc) {
-      return res.status(404).json({ error: "Processed file not found" });
+    // Retrieve all comparisons from the tokens collection
+    const comparisons = await tokensCollection.find().toArray();
+
+    if (!comparisons || comparisons.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "No comparisons found for the user" });
     }
 
-    const chunksCollection = db.collection("uploads.chunks");
-    const chunks = await chunksCollection
-      .find({ files_id: objectId })
-      .sort({ n: 1 })
-      .toArray();
+    // Helper function to fetch file data from chunks using fileId
+    const fetchFileData = async (fileId) => {
+      try {
+        // Validate ObjectId
+        if (!ObjectId.isValid(fileId)) {
+          console.error(`Invalid fileId: ${fileId}`);
+          return null;
+        }
 
-    let fileData = "";
-    chunks.forEach((chunk) => {
-      fileData += chunk.data.toString("utf8");
-    });
+        const objectId = new ObjectId(fileId);
 
-    res.status(200).json({ processedCode: fileData });
+        // Query the uploads.files collection for the file metadata
+        const fileDoc = await filesCollection.findOne({ _id: objectId });
+
+        if (!fileDoc) {
+          console.log(`File document not found for ID: ${objectId}`);
+          return null;
+        }
+
+        // Query the uploads.chunks collection for the file chunks
+        const chunks = await chunksCollection
+          .find({ files_id: objectId })
+          .sort({ n: 1 })
+          .toArray();
+
+        if (chunks.length === 0) {
+          console.log(`No chunks found for file ID: ${objectId}`);
+          return null;
+        }
+
+        // Combine all the chunks into the final file data
+        let fileData = "";
+        chunks.forEach((chunk) => {
+          fileData += chunk.data.toString("utf8");
+        });
+
+        return fileData;
+      } catch (error) {
+        console.error(`Error fetching file data for ID: ${fileId}`, error);
+        return null;
+      }
+    };
+
+    const processedCodes = [];
+
+    // Loop through all comparisons to get text and pattern processed codes
+    for (const comparison of comparisons) {
+      const textFileId = comparison.text1ProcessedCodeID; // Make sure this field matches the actual ID field
+      const patternFileId = comparison.pattern1ProcessedCodeId;
+
+      const textCode = await fetchFileData(textFileId); // Fetch the text code content
+      const patternCode = await fetchFileData(patternFileId); // Fetch the pattern code content
+
+      processedCodes.push({
+        comparisonId: comparison._id,
+        textCode: textCode || "Text code not found",
+        patternCode: patternCode || "Pattern code not found",
+        similarityScore: comparison.similarityScore,
+      });
+    }
+
+    res.status(200).json({ processedCodes });
   } catch (error) {
-    console.error("Error retrieving processed code:", error);
+    console.error("Error retrieving processed codes:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

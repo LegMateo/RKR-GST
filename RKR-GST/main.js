@@ -108,7 +108,7 @@ export async function processUserTokens(userId) {
         const pattern_mark = Array(patternTokens.length).fill(false);
 
         let s = 20;
-        const minimumMatchLength = 3;
+        const minimumMatchLength = 5;
         let count = 1;
 
         let stop = false;
@@ -159,9 +159,11 @@ export async function processUserTokens(userId) {
 
         let totalMatchingLength = text_mark.filter(Boolean).length;
 
-        const similarityScore =
-          (2 * totalMatchingLength) /
-          (textTokens.length + patternTokens.length);
+        const similarityScore = (
+          ((2 * totalMatchingLength) /
+            (textTokens.length + patternTokens.length)) *
+          100
+        ).toFixed(4);
 
         const tokenDocumentUpdate = {
           userId,
