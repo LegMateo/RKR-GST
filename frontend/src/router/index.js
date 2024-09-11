@@ -8,7 +8,7 @@ const routes = [
     component: FileUpload,
   },
   {
-    path: "/:pathMatch(.*)*", // Catch-all route
+    path: "/:pathMatch(.*)*",
     redirect: "/upload",
   },
 ];

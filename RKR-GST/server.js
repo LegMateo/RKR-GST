@@ -25,11 +25,9 @@ const upload = multer({ storage });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Schedule the cleanup job to run every day at midnight (00:00)
 cron.schedule("0 0 * * *", () => {
-  // Runs at 00:00 every day
   console.log("Running daily user cleanup...");
-  cleanupOldUsers(); // Call the cleanup function
+  cleanupOldUsers();
 });
 
 function generateUserId() {
@@ -59,7 +57,6 @@ async function runPreprocessingScript(fileId, userId) {
       let processedCode = stdout.trim();
       console.log("Processed Code:", processedCode);
 
-      // Normalize line endings for consistency
       const normalizedContent = processedCode
         .replace(/\r\n/g, "\n")
         .replace(/\r/g, "\n");
@@ -98,7 +95,6 @@ async function runPreprocessingScript(fileId, userId) {
   });
 }
 
-// Upload Endpoint
 app.post("/upload", upload.array("files"), async (req, res) => {
   console.log("Files received:", req.files);
   if (!req.files || req.files.length === 0) {
@@ -141,7 +137,6 @@ app.post("/upload", upload.array("files"), async (req, res) => {
         userId
       );
 
-      // Check if the processed file already exists
       const processedFilename = `p_${file.originalname}`;
       const existingProcessedFile = await checkIfProcessedFileExists(
         userId,
@@ -153,7 +148,6 @@ app.post("/upload", upload.array("files"), async (req, res) => {
         console.log(`Processed file already exists: ${processedFilename}`);
         processedCodeId = existingProcessedFile._id;
       } else {
-        // Ensure processed code is uploaded only once
         const processedCodeStream = new Readable();
         processedCodeStream.push(processedCode);
         processedCodeStream.push(null);
@@ -178,11 +172,6 @@ app.post("/upload", upload.array("files"), async (req, res) => {
           `Processed file uploaded: ${processedFilename}, ID: ${processedCodeId}`
         );
       }
-
-      // Debugging: Log processed code, tokens, and metadata before saving
-      console.log("Processed Code ID:", processedCodeId);
-      console.log("Tokens before saving to DB:", tokens);
-      console.log("Metadata before saving to DB:", metadata);
 
       const tokenDocument = {
         userId,
@@ -218,18 +207,15 @@ app.get("/calculate/:userId", async (req, res) => {
     const db = await connectToUserDB(userId);
     const filesCollection = db.collection("uploads.files");
 
-    // Process tokens and retrieve comparisons
     const results = await processUserTokens(userId);
 
     const processedCodeIds = new Set();
 
-    // Collect all processed code IDs from the results
     results.comparisons.forEach((comparison) => {
       processedCodeIds.add(comparison.text1ProcessedCodeID);
       processedCodeIds.add(comparison.pattern1ProcessedCodeId);
     });
 
-    // Retrieve the filenames for the processed code IDs
     const filesData = await filesCollection
       .find({
         _id: {
@@ -243,7 +229,6 @@ app.get("/calculate/:userId", async (req, res) => {
       filenameMap[file._id.toString()] = file.filename;
     });
 
-    // Update the comparisons with filenames and add metadata
     const formattedComparisons = results.comparisons.map(
       (comparison, index) => {
         const textFilename =
@@ -257,8 +242,8 @@ app.get("/calculate/:userId", async (req, res) => {
           pattern1ProcessedCodeId: comparison.pattern1ProcessedCodeId,
           [`text${index + 1}Filename`]: textFilename,
           [`pattern${index + 1}Filename`]: patternFilename,
-          textMetadata: comparison.textMetadata || [], // Add text metadata
-          patternMetadata: comparison.patternMetadata || [], // Add pattern metadata
+          textMetadata: comparison.textMetadata || [],
+          patternMetadata: comparison.patternMetadata || [],
         };
       }
     );
@@ -269,9 +254,6 @@ app.get("/calculate/:userId", async (req, res) => {
   }
 });
 
-// Retrieve Processed Code Endpoint
-// Retrieve all Processed Codes for a User
-// Retrieve all Processed Codes for a User from IDs stored in the "tokens" collection
 app.get("/processedCode/:userId", async (req, res) => {
   const { userId } = req.params;
   console.log(`Retrieving all processed code for user ID ${userId}`);
@@ -282,7 +264,6 @@ app.get("/processedCode/:userId", async (req, res) => {
     const chunksCollection = db.collection("uploads.chunks");
     const tokensCollection = db.collection("tokens");
 
-    // Retrieve all comparisons from the tokens collection
     const comparisons = await tokensCollection.find().toArray();
 
     if (!comparisons || comparisons.length === 0) {
@@ -291,10 +272,8 @@ app.get("/processedCode/:userId", async (req, res) => {
         .json({ error: "No comparisons found for the user" });
     }
 
-    // Helper function to fetch file data from chunks using fileId
     const fetchFileData = async (fileId) => {
       try {
-        // Validate ObjectId
         if (!ObjectId.isValid(fileId)) {
           console.error(`Invalid fileId: ${fileId}`);
           return null;
@@ -302,15 +281,12 @@ app.get("/processedCode/:userId", async (req, res) => {
 
         const objectId = new ObjectId(fileId);
 
-        // Query the uploads.files collection for the file metadata
         const fileDoc = await filesCollection.findOne({ _id: objectId });
 
         if (!fileDoc) {
           console.log(`File document not found for ID: ${objectId}`);
           return null;
         }
-
-        // Query the uploads.chunks collection for the file chunks
         const chunks = await chunksCollection
           .find({ files_id: objectId })
           .sort({ n: 1 })
@@ -320,8 +296,6 @@ app.get("/processedCode/:userId", async (req, res) => {
           console.log(`No chunks found for file ID: ${objectId}`);
           return null;
         }
-
-        // Combine all the chunks into the final file data
         let fileData = "";
         chunks.forEach((chunk) => {
           fileData += chunk.data.toString("utf8");
@@ -336,13 +310,12 @@ app.get("/processedCode/:userId", async (req, res) => {
 
     const processedCodes = [];
 
-    // Loop through all comparisons to get text and pattern processed codes
     for (const comparison of comparisons) {
-      const textFileId = comparison.text1ProcessedCodeID; // Make sure this field matches the actual ID field
+      const textFileId = comparison.text1ProcessedCodeID;
       const patternFileId = comparison.pattern1ProcessedCodeId;
 
-      const textCode = await fetchFileData(textFileId); // Fetch the text code content
-      const patternCode = await fetchFileData(patternFileId); // Fetch the pattern code content
+      const textCode = await fetchFileData(textFileId);
+      const patternCode = await fetchFileData(patternFileId);
 
       processedCodes.push({
         comparisonId: comparison._id,

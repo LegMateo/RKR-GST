@@ -45,6 +45,7 @@
 <script>
 import { uploadFiles, calculateTokens } from "../services/index.js";
 import ComparisonView from "@/components/ComparisonView.vue";
+import { Chart } from "chart.js";
 
 export default {
   components: {
@@ -59,6 +60,7 @@ export default {
       lastProcessedUserId: null,
       uploadLoading: false,
       calculateLoading: false,
+      chartInstance: null,
     };
   },
   methods: {
@@ -113,7 +115,7 @@ export default {
         this.comparisonResults = comparisonResults;
 
         this.lastProcessedUserId = this.userId;
-        this.createBarChart(); // Call to create the bar chart
+        this.createBarChart();
         console.log("Token calculation completed.");
       } catch (error) {
         console.error("Error calculating tokens:", error);
@@ -122,7 +124,17 @@ export default {
       }
     },
     createBarChart() {
+      console.log("Comparison Results:", this.comparisonResults);
+      if (!this.comparisonResults || this.comparisonResults.length === 0) {
+        console.error("No comparison results available to display.");
+        return;
+      }
+
       const ctx = document.getElementById("similarityChart").getContext("2d");
+
+      if (this.chartInstance) {
+        this.chartInstance.destroy();
+      }
 
       const labels = this.comparisonResults.map((result, index) => {
         const textFilename =
@@ -138,7 +150,7 @@ export default {
 
       const backgroundColors = this.generateBarColors(similarityData);
 
-      new Chart(ctx, {
+      this.chartInstance = new Chart(ctx, {
         type: "bar",
         data: {
           labels: labels,
@@ -173,14 +185,15 @@ export default {
         },
       });
     },
+
     generateBarColors(data) {
       return data.map((value) => {
-        if (value >= 70) {
+        if (value >= 76) {
           return "rgba(255, 99, 132, 0.2)"; // Red for high similarity
-        } else if (value >= 41 && value <= 69) {
+        } else if (value >= 41 && value <= 75) {
           return "rgba(255, 205, 86, 0.2)"; // Yellow for moderate similarity
         } else {
-          return "rgba(75, 192, 192, 0.2)"; // Green for low similarity
+          return "rgba(75, 192, 192, 0.2)";
         }
       });
     },

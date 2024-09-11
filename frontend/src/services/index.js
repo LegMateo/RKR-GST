@@ -1,6 +1,3 @@
-// index.js
-
-// Function to handle file uploads
 export async function uploadFiles(files) {
   const formData = new FormData();
   for (let i = 0; i < files.length; i++) {
@@ -24,7 +21,6 @@ export async function uploadFiles(files) {
   }
 }
 
-// Function to handle token calculation
 export async function calculateTokens(userId) {
   try {
     const response = await fetch(`http://localhost:3000/calculate/${userId}`, {
@@ -39,14 +35,12 @@ export async function calculateTokens(userId) {
     if (!data.comparisons) {
       throw new Error("Comparisons data is missing");
     }
-    console.log(data.comparisons);
-    return data.comparisons; // Return only the comparisons array
+    return data.comparisons;
   } catch (error) {
     throw new Error(`Error calculating tokens: ${error.message}`);
   }
 }
 
-// Function to fetch all processed comparison data for a user
 export async function fetchProcessedCodes(userId) {
   try {
     const response = await fetch(
@@ -64,10 +58,8 @@ export async function fetchProcessedCodes(userId) {
     if (!data.processedCodes) {
       throw new Error("Processed codes data is missing");
     }
-    console.log(data.processedCodes);
-    return data.processedCodes; // Return processed comparison data
+    return data.processedCodes;
   } catch (error) {
-    console.error("Error fetching comparison results:", error);
-    throw new Error(`Error fetching comparison results: ${error.message}`); // Re-throw the error or handle it as needed
+    throw new Error(`Error fetching comparison results: ${error.message}`);
   }
 }

@@ -1,6 +1,5 @@
 <template>
   <div class="comparison-container">
-    <!-- Check if there are any comparisons to display -->
     <div v-if="filteredComparisons.length > 0">
       <div
         v-for="(result, index) in filteredComparisons"
@@ -8,12 +7,10 @@
         class="comparison-item"
       >
         <h4>Comparison {{ index + 1 }}</h4>
-        <h4>Similarity Score: {{ result.similarityScore }}</h4>
+        <h4>Similarity Score: {{ result.similarityScore }} %</h4>
 
         <div class="comparison-container">
-          <!-- Text File Processed Code -->
           <div class="code-section">
-            <!-- Move the Text Filename right after the header -->
             <p v-if="result[`text${index + 1}Filename`]">
               {{ result[`text${index + 1}Filename`] }}
             </p>
@@ -32,7 +29,6 @@
             ></pre>
           </div>
 
-          <!-- Pattern File Processed Code -->
           <div class="code-section">
             <p v-if="result[`pattern${index + 1}Filename`]">
               {{ result[`pattern${index + 1}Filename`] }}
@@ -55,7 +51,6 @@
       </div>
     </div>
 
-    <!-- Show a popup if no comparisons meet the criteria -->
     <div v-else>
       <p>No plagiarism detected.</p>
     </div>
@@ -63,11 +58,7 @@
 </template>
 
 <script>
-import {
-  fetchProcessedCodes,
-  calculateTokens,
-  uploadFiles,
-} from "../services/index.js";
+import { fetchProcessedCodes } from "../services/index.js";
 import Prism from "prismjs";
 import "prismjs/themes/prism.css";
 import "prismjs/components/prism-c";
@@ -77,17 +68,16 @@ export default {
   props: ["comparisons", "userId"],
   data() {
     return {
-      localComparisons: [], // Local reactive copy of comparisons
+      localComparisons: [],
       textProcessedCodes: [],
       patternProcessedCodes: [],
       textFileMetadata: [],
       patternFileMetadata: [],
-      lastProcessedUserId: null, // Track last processed userId
+      lastProcessedUserId: null,
       loading: false,
     };
   },
   computed: {
-    // Computed property to filter comparisons by similarity score
     filteredComparisons() {
       return this.localComparisons.filter((result) => result.similarityScore);
     },
@@ -103,38 +93,27 @@ export default {
   },
   methods: {
     async loadProcessedCodes() {
-      this.loading = true; // Start loading
+      this.loading = true;
       try {
-        // Clear the arrays before loading new data
         this.textProcessedCodes = [];
         this.patternProcessedCodes = [];
         this.textFileMetadata = [];
         this.patternFileMetadata = [];
 
-        // Fetch all processed codes in one go
-        const processedCodes = await fetchProcessedCodes(this.userId); // Fetch the processed codes
-        console.log("Processed Codes:", processedCodes); // Log the processed codes
+        const processedCodes = await fetchProcessedCodes(this.userId);
 
-        // Iterate over the local comparisons and the processedCodes in order
         processedCodes.forEach((processedCode, index) => {
-          const comparison = this.localComparisons[index]; // Get the corresponding comparison
+          const comparison = this.localComparisons[index];
 
           if (comparison) {
-            // Use the processed textCode and patternCode
-            const textCode = processedCode.textCode || ""; // Get textCode from the processed codes
-            const patternCode = processedCode.patternCode || ""; // Get patternCode from the processed codes
+            const textCode = processedCode.textCode || "";
+            const patternCode = processedCode.patternCode || "";
 
-            // Push the processed text and pattern code into the respective arrays
             this.textProcessedCodes.push(textCode);
             this.patternProcessedCodes.push(patternCode);
 
-            // Push metadata from the comparison object
             this.textFileMetadata.push(comparison.textMetadata || []);
             this.patternFileMetadata.push(comparison.patternMetadata || []);
-
-            // Logging to ensure correct data is being fetched
-            console.log("TEXT:", textCode);
-            console.log("PATTERN:", patternCode);
           } else {
             console.error(`No comparison found for index: ${index}`);
           }
@@ -142,113 +121,12 @@ export default {
       } catch (error) {
         console.error("Error loading processed codes:", error);
       } finally {
-        this.loading = false; // Stop loading once data is fetched
-      }
-    },
-
-    async handleNewUpload(files) {
-      try {
-        this.loading = true;
-
-        // Upload the files
-        const uploadResponse = await uploadFiles(files);
-        const { userId } = uploadResponse;
-
-        // Check if the current userId matches the last processed one
-        if (userId === this.lastProcessedUserId) {
-          alert("Calculation already completed for current data.");
-          this.loading = false;
-          return; // Exit the function to prevent re-calculation
-        }
-
-        // Trigger calculation and fetch new comparisons
-        const newComparisons = await calculateTokens(userId);
-        this.localComparisons = newComparisons;
-
-        // Update the last processed userId
-        this.lastProcessedUserId = userId;
-
-        await this.loadProcessedCodes(); // Load new processed codes
-      } catch (error) {
-        console.error("Error during upload and calculation:", error);
-      } finally {
         this.loading = false;
       }
     },
 
     applySyntaxHighlighting(code) {
       return Prism.highlight(code, Prism.languages.cpp, "cpp");
-    },
-
-    highlightCodeWithMetadata(html, metadata) {
-      if (!html || !metadata || !Array.isArray(metadata)) {
-        return html;
-      }
-
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = html;
-
-      metadata.forEach(({ line, column }) => {
-        console.log(`Marking line: ${line}, column: ${column}`);
-
-        let found = false;
-        let currentLine = 1;
-        let position = 0;
-
-        const walkNodes = (node) => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            let text = node.textContent;
-
-            for (let i = 0; i < text.length; i++) {
-              if (currentLine === line && position === column - 1) {
-                let tokenParent = node.parentNode;
-                while (
-                  tokenParent &&
-                  !tokenParent.classList.contains("token")
-                ) {
-                  tokenParent = tokenParent.parentNode;
-                }
-
-                if (
-                  tokenParent &&
-                  !tokenParent.classList.contains("highlight")
-                ) {
-                  console.log(
-                    `Applying highlight to: "${tokenParent.textContent.trim()}" at actual position line ${currentLine}, column ${
-                      position + 1
-                    }`
-                  );
-                  tokenParent.classList.add("highlight");
-                  found = true;
-                } else {
-                  console.log(
-                    `No tokenParent found or already highlighted at line ${line}, column ${column}.`
-                  );
-                }
-                return;
-              }
-              position++;
-              if (text[i] === "\n") {
-                currentLine++;
-                position = 0;
-              }
-            }
-          } else if (node.nodeType === Node.ELEMENT_NODE) {
-            for (
-              let child = node.firstChild;
-              child;
-              child = child.nextSibling
-            ) {
-              walkNodes(child);
-              if (found) break;
-            }
-          }
-        };
-
-        walkNodes(tempDiv);
-      });
-
-      return tempDiv.innerHTML;
     },
 
     wrapUnrecognizedTokens(html) {
@@ -278,21 +156,6 @@ export default {
       return tempDiv.innerHTML;
     },
 
-    getFinalHighlightedCode(code, metadata, similarityScore) {
-      // Step 1: Apply Prism syntax highlighting
-      const highlightedCode = this.applySyntaxHighlighting(code);
-
-      // Step 2: Wrap unrecognized tokens
-      const wrappedCode = this.wrapUnrecognizedTokens(highlightedCode);
-
-      // Step 3: Apply metadata-based highlighting and similarity-based highlighting
-      return this.highlightCodeWithMetadataAndScore(
-        wrappedCode,
-        metadata,
-        similarityScore
-      );
-    },
-
     highlightCodeWithMetadataAndScore(html, metadata, similarityScore) {
       if (!html || !metadata || !Array.isArray(metadata)) {
         return html;
@@ -302,12 +165,12 @@ export default {
       tempDiv.innerHTML = html;
 
       let highlightClass = "";
-      if (similarityScore >= 70) {
-        highlightClass = "highlight-high"; // Red for high similarity
-      } else if (similarityScore >= 41 && similarityScore <= 69) {
-        highlightClass = "highlight-moderate"; // Yellow for moderate similarity
+      if (similarityScore >= 76) {
+        highlightClass = "highlight-high";
+      } else if (similarityScore >= 41 && similarityScore <= 75) {
+        highlightClass = "highlight-moderate";
       } else {
-        highlightClass = "highlight-low"; // Green for low similarity
+        highlightClass = "highlight-low";
       }
 
       metadata.forEach(({ line, column }) => {
@@ -338,7 +201,7 @@ export default {
                       position + 1
                     }`
                   );
-                  tokenParent.classList.add("highlight", highlightClass); // Apply the highlight class
+                  tokenParent.classList.add("highlight", highlightClass);
                   found = true;
                 }
                 return;
@@ -366,9 +229,21 @@ export default {
 
       return tempDiv.innerHTML;
     },
+
+    getFinalHighlightedCode(code, metadata, similarityScore) {
+      const highlightedCode = this.applySyntaxHighlighting(code);
+
+      const wrappedCode = this.wrapUnrecognizedTokens(highlightedCode);
+
+      return this.highlightCodeWithMetadataAndScore(
+        wrappedCode,
+        metadata,
+        similarityScore
+      );
+    },
   },
   mounted() {
-    this.loadProcessedCodes(); // Load initial data
+    this.loadProcessedCodes();
   },
 };
 </script>

@@ -1,31 +1,27 @@
 function rabinKarpHash(str, s) {
-  const d = 31; // Prime base, adjust as needed
-  const q = 101; // Prime modulus, helps in reducing collisions
+  const d = 31;
+  const q = 101;
   const n = str.length;
   let h = 1;
   let tHash = 0;
   let hashValues = [];
 
-  // Precompute h = d^(s-1) % q
   for (let i = 0; i < s - 1; i++) {
     h = (h * d) % q;
   }
 
-  // Compute the hash value for the first window
   for (let i = 0; i < s; i++) {
     tHash = (d * tHash + (str.charCodeAt(i) - "A".charCodeAt(0) + 1)) % q;
   }
 
   hashValues.push(tHash);
 
-  // Compute hash values for the subsequent windows
   for (let i = 1; i <= n - s; i++) {
     tHash =
       (d * (tHash - (str.charCodeAt(i - 1) - "A".charCodeAt(0) + 1) * h) +
         (str.charCodeAt(i + s - 1) - "A".charCodeAt(0) + 1)) %
       q;
 
-    // Handle negative hash values
     if (tHash < 0) {
       tHash = tHash + q;
     }

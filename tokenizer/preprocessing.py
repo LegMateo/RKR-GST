@@ -4,18 +4,15 @@ import sys
 import pymongo
 from gridfs import GridFS
 from bson import ObjectId
-from gridfs.errors import NoFile  # Import the correct NoFile exception
+from gridfs.errors import NoFile  
 from dotenv import load_dotenv
 
-# Load environment variables from a .env file if needed
 load_dotenv()
 
 def remove_comments_and_imports_from_cpp(db_name, file_id):
     try:
-        # Prefix the database name with 'user_'
         db_name = f"user_{db_name}"
 
-        # Connect to MongoDB using the prefixed database name
         mongo_uri = os.getenv('MONGODB_URI')
         client = pymongo.MongoClient(mongo_uri)
         db = client[db_name]
@@ -83,7 +80,7 @@ def remove_comments_and_imports_from_cpp(db_name, file_id):
 
         return processed_code
 
-    except NoFile:  # Correct exception handling
+    except NoFile: 
         print(f"No file found with ID: {file_id} in collection 'uploads'")
         return f"No file found with ID: {file_id}"
 

@@ -41,8 +41,8 @@ enum TokenType {
     EQUAL,
     LESS_THAN,
     GREATER_THAN,
-    LEFT_SHIFT,      // Token for <<
-    RIGHT_SHIFT,     // Token for >>
+    LEFT_SHIFT,   
+    RIGHT_SHIFT,    
     OPEN_PARENTH,
     CLOSE_PARENTH,
     OPEN_CURLY,
@@ -129,12 +129,10 @@ void initialize_token_to_char() {
     token_to_char[NOT] = 'z';
     token_to_char[MODULO] = 'x';
 }
-// Function to add a class name to the symbol table
 void add_class_name(const char* name) {
     symbol_table[name] = "class";
 }
 
-// Function to add a function name to the symbol table
 void add_function_name(const char* name) {
     symbol_table[name] = "function";
 }
@@ -147,7 +145,7 @@ void add_function_name(const char* name) {
 
 %%
 
-[\n]                    { line_num++; column_num = 1; }  // Increment line number on newline
+[\n]                    { line_num++; column_num = 1; } 
 
 [ \t]+                  { column_num += yyleng; /* Ignore whitespace */ }
 "//".*                  { /* Ignore single-line comments */ }
