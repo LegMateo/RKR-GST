@@ -14,9 +14,8 @@ function scanpattern(T, P, s, text_mark, pattern_mark) {
     let text = "";
     let tempT = currentT;
 
-    console.log(`Current T: ${tempT.data}`);
     let result = checkNextTokens(currentT, text_mark, s, index);
-    currentT = result.currentT;
+    currentT = result.currentTP;
     index = result.index;
 
     if (currentT == null) {
@@ -49,7 +48,7 @@ function scanpattern(T, P, s, text_mark, pattern_mark) {
     let tempP = currentP;
 
     let result = checkNextTokens(currentP, pattern_mark, s, patternIndex);
-    currentP = result.currentT;
+    currentP = result.currentTP;
     patternIndex = result.index;
 
     if (currentP == null) {
@@ -150,6 +149,7 @@ function scanpattern(T, P, s, text_mark, pattern_mark) {
   console.log(`Hash table: ${JSON.stringify(hashTable)}`);
   list.printList();
   console.log(`Longest match: ${longestMatch}`);
+
   return { longestMatch, list };
 }
 
@@ -170,11 +170,11 @@ function isMarked(index, markArray, s) {
   return false;
 }
 
-function checkNextTokens(currentT, markArray, s, currentIndex) {
+function checkNextTokens(currentTP, markArray, s, currentIndex) {
   console.log(`Checking next tokens with s = ${s}`);
 
   let index = currentIndex;
-  let tempT = currentT;
+  let tempT = currentTP;
 
   let isMarked = false;
   for (let i = 0; i < s && tempT != null; i++) {
@@ -196,17 +196,17 @@ function checkNextTokens(currentT, markArray, s, currentIndex) {
     }
     console.log(`Skipping from index ${index} to index ${nextUnmarkedIndex}`);
     if (nextUnmarkedIndex - index <= s) {
-      for (let i = index; i < nextUnmarkedIndex && currentT != null; i++) {
-        currentT = currentT.next;
+      for (let i = index; i < nextUnmarkedIndex && currentTP != null; i++) {
+        currentTP = currentTP.next;
       }
       index = nextUnmarkedIndex;
       console.log(`Returning to index ${index} with currentT after skipping`);
     } else if (nextUnmarkedIndex >= markArray.length) {
-      currentT = null;
+      currentTP = null;
       index = markArray.length;
     } else {
-      for (let i = index; i < nextUnmarkedIndex && currentT != null; i++) {
-        currentT = currentT.next;
+      for (let i = index; i < nextUnmarkedIndex && currentTP != null; i++) {
+        currentTP = currentTP.next;
       }
       index = nextUnmarkedIndex;
     }
@@ -216,7 +216,7 @@ function checkNextTokens(currentT, markArray, s, currentIndex) {
     `No marked tokens found from index ${index} to index ${index + s - 1}`
   );
 
-  return { currentT, index };
+  return { currentTP, index };
 }
 
 export default scanpattern;

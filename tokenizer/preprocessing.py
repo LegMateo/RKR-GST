@@ -124,3 +124,4 @@ if __name__ == '__main__':
     db_name = sys.argv[1]
     file_id = sys.argv[2]
     processed_code = remove_comments_and_imports_from_cpp(db_name, file_id)
+    print(processed_code)
