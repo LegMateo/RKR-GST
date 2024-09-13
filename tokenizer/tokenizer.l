@@ -13,11 +13,10 @@ bool isStringType(const string &str);
 std::map<std::string, std::string> symbol_table;
 std::map<int, char> token_to_char;
 
-std::ostringstream tokenStream;  // String stream to accumulate tokens and metadata
-int line_num = 1;  // Track line number
-int column_num = 1;  // Track column number
+std::ostringstream tokenStream;  
+int line_num = 1;  
+int column_num = 1;  
 
-// Define token types
 enum TokenType {
     NAMESPACE = 256,
     CLASS,
@@ -63,6 +62,7 @@ enum TokenType {
     AND,
     IF,
     ELSE,
+    FOR,
     WHILE,
     DO,
     SWITCH,
@@ -119,13 +119,14 @@ void initialize_token_to_char() {
     token_to_char[AND] = 'n';
     token_to_char[IF] = 'o';
     token_to_char[ELSE] = 'p';
-    token_to_char[WHILE] = 'q';
-    token_to_char[DO] = 'r';
-    token_to_char[SWITCH] = 's';
-    token_to_char[CASE] = 't';
-    token_to_char[BREAK] = 'u';
-    token_to_char[CONTINUE] = 'v';
-    token_to_char[VIRTUAL] = 'w';
+    token_to_char[FOR] = 'q';
+    token_to_char[WHILE] = 'r';
+    token_to_char[DO] = 's';
+    token_to_char[SWITCH] = 't';
+    token_to_char[CASE] = 'u';
+    token_to_char[BREAK] = 'v';
+    token_to_char[CONTINUE] = 'w';
+    token_to_char[VIRTUAL] = 'y';
     token_to_char[NOT] = 'z';
     token_to_char[MODULO] = 'x';
 }
@@ -168,21 +169,20 @@ void add_function_name(const char* name) {
     tokenStream << token_to_char[VOID] << ' ' << line_num << ' ' << column_num << '\n';
     column_num += yyleng;  // Update column number after "void"
     
-    // Handling any whitespace or newline immediately after "void"
     int c;
     while ((c = yyinput()) != EOF) {
         if (c == '\n') {
             line_num++;
-            column_num = 1;  // Reset column number at the start of a new line
+            column_num = 1;
         } else if (isspace(c)) {
             column_num++;
         } else {
-            unput(c);  // Put back the non-whitespace character
+            unput(c);  
             break;
         }
     }
 
-    BEGIN(FUNC_DECL);  // Switch to function declaration state
+    BEGIN(FUNC_DECL);  
     return VOID;
 }
 "virtual"   { tokenStream << token_to_char[VIRTUAL] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return VIRTUAL; }
@@ -200,6 +200,7 @@ void add_function_name(const char* name) {
 
 "if"        { tokenStream << token_to_char[IF] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return IF; }
 "else"      { tokenStream << token_to_char[ELSE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return ELSE; }
+"for"      { tokenStream << token_to_char[FOR] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return FOR; }
 "while"     { tokenStream << token_to_char[WHILE] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return WHILE; }
 "do"        { tokenStream << token_to_char[DO] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return DO; }
 "switch"    { tokenStream << token_to_char[SWITCH] << ' ' << line_num << ' ' << column_num << '\n'; column_num += yyleng; return SWITCH; }
@@ -324,9 +325,8 @@ int main(int argc, char **argv)
 
     initialize_token_to_char();
 
-    while (yylex()); // Keep calling yylex until it returns 0
+    while (yylex()); 
 
-    // Output all the tokens and their metadata at once
     std::cout << tokenStream.str();
 
     return 0;

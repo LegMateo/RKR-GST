@@ -89,6 +89,10 @@ def remove_comments_and_imports_from_cpp(db_name, file_id):
         return f"Unexpected error occurred: {str(e)}"
 
 def split_declarations(line):
+    # Check if the line contains a 'for' loop and skip splitting in such cases
+    if 'for' in line:
+        return line, []  # Skip splitting for 'for' loops
+
     combined_decl = re.compile(r'(\w+\s+)((?:\w+\s*=\s*[^,;]+,?\s*)+);')
     match = combined_decl.search(line)
     if match:

@@ -108,7 +108,7 @@ export async function processUserTokens(userId) {
         const pattern_mark = Array(patternTokens.length).fill(false);
 
         let s = 20;
-        const minimumMatchLength = 5;
+        const minimumMatchLength = 4;
         let count = 1;
 
         let stop = false;
