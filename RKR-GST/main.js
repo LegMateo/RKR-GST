@@ -114,13 +114,15 @@ export async function processUserTokens(userId) {
         let stop = false;
 
         while (!stop) {
+          console.log(text_mark, pattern_mark);
+
           let Lmax = scanpattern(
             textTokenList,
             patternTokenList,
             s,
             text_mark,
             pattern_mark
-          );
+          ); // Lmax  = largest maximal-matches found
           console.log(`Lmax = ${Lmax.longestMatch} `);
           console.log("S is: " + s);
           if (Lmax.longestMatch > 2 * s) {
@@ -130,6 +132,8 @@ export async function processUserTokens(userId) {
             s = Lmax.longestMatch;
           } else {
             markarrays(s, Lmax.list, pattern_mark, text_mark);
+            // console.log(JSON.stringify("TEXT" + text_mark, null, 2));
+            // console.log(JSON.stringify("PATTERN" + pattern_mark, null, 2));
             if (s > 2 * minimumMatchLength) {
               s = Math.floor(s / 2);
               count++;
@@ -201,6 +205,8 @@ export async function processUserTokens(userId) {
       userId,
       similarityScore: { $exists: false },
     });
+
+    console.log("Old tokens removed.");
 
     return { comparisons };
   } catch (error) {
